@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    page-break-after: always;
+    margin: 0.5cm;
+  }
+}
+table {
+  border: 2px solid black;
+}
+th {
+  color: black;
+  border: 1px solid black;
+}
