@@ -1,0 +1,30 @@
+name: CI/CD → Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. SSH into EC2, pull latest code, rebuild and restart ──────────────
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/result-app
+
+            # Pull latest code from GitHub
+            git pull origin main
+
+            # Rebuild image and restart container
+            docker compose up --build -d
+
+            # Clean up old dangling images to save disk space
+            docker image prune -f
