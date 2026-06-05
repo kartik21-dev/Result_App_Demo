@@ -1,4 +1,4 @@
-name: CI/CD → Deploy to AWS EC2
+name: CI/CD → Build then Deploy to AWS EC2
 
 on:
   push:
@@ -6,12 +6,43 @@ on:
       - main
 
 jobs:
-  deploy:
+  # ════════════════════════════════════════════════════════
+  # STAGE 1 — CI: Build & Verify
+  # ════════════════════════════════════════════════════════
+  build:
+    name: 🔨 Build & Verify
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. SSH into EC2, pull latest code, rebuild and restart ──────────────
-      - name: Deploy to EC2
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build React app
+        run: npm run build
+
+      - name: Build Docker image (verify it compiles)
+        run: docker build -t result-app:test .
+
+  # ════════════════════════════════════════════════════════
+  # STAGE 2 — CD: Deploy (only runs if Stage 1 passed)
+  # ════════════════════════════════════════════════════════
+  deploy:
+    name: 🚀 Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build                  # ← waits for build job to pass
+    if: success()                 # ← only runs if build succeeded
+
+    steps:
+      - name: SSH into EC2 and deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -20,11 +51,11 @@ jobs:
           script: |
             cd ~/result-app
 
-            # Pull latest code from GitHub
+            # Pull latest code
             git pull origin main
 
-            # Rebuild image and restart container
+            # Rebuild and restart container
             docker compose up --build -d
 
-            # Clean up old dangling images to save disk space
+            # Clean up old images
             docker image prune -f
